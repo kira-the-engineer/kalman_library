@@ -10,7 +10,6 @@ The creation of this library was inspired by issues with GPS accuracy in my [cap
 Current implementation of this library is being tested on an Adafruit Feather with an ATSAMD21 ARM Cortex MO micrcontroller on board. All development is being done using PlatformIO. The current libraries used for this project are the [ArxTypeTraits](https://github.com/hideakitai/ArxTypeTraits) library and Bolder Flight's port of [Eigen](https://github.com/bolderflight/eigen). Challenges with implementation include scaling the size of the matricies used for the Kalman Filters while maintaining good space and runtime complexity and finding ways to test and ensure accuracy of the filters.
 
 ## To Do List (non-exhaustive)
-- [ ] Test the Linear KF code with input from real, linear sensor data
 - [ ] Write the sigma point functions for the Unscented Kalman Filter
 - [ ] Write class for creating Unscented Kalman Filters
 - [ ] Create a way for KF output to be graphed (possibly using Python- or whatever the C++ equivalent of Matplotlib is- this will not run on the microcontroller itself!!)
