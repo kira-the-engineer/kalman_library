@@ -25,7 +25,7 @@ class KF{
         void set_K(MatrixXf copy); //for circumstances where you'd want to hardcode the kalman gain to reduce computational complexity
 
 
-    protected:
+    private:
         //system dimensions
         // x (int): number of state variables for the KF.
         // z (int): number of measurement variables
