@@ -2,7 +2,6 @@
 #include "math.h"
 #include <Eigen/Cholesky>
 #include <Eigen/LU>
-#include <functional>
 
 using namespace Eigen;
 using namespace std;
@@ -18,11 +17,14 @@ class UKF {
          * if you have a single position sensor with outputs (x,y) z would be a column vector with 2 rows. 
          * dim_u (int): dimension of the control vector, where number of rows is the number of control inputs. defaults to 1 by 1 vector
          * dt (float): time step used in the state transition process- in seconds
-         * f_x (function): Function that moves the sigma points forward in time according to the process model. Should return a matrix of transformed 
+         * process (function): Function that moves the sigma points forward in time according to the process model. Should return a matrix of transformed 
          * sigma points. Takes in the sigma points matrix and the time step used to forward each point
-         * h_x (function): Function responsible for converting the prior sigma points returned by f_x into measurements. Should return a matrix
+         * meas (function): Function responsible for converting the prior sigma points returned by f_x into measurements. Should return a matrix
          */ 
-        UKF(int dim_x, int dim_z, int dim_u = 1, float dt, function<MatrixXf(MatrixXf, float)>f_x, function<MatrixXf(MatrixXf)>h_x);
+        UKF(int dim_x, int dim_z, int dim_u, float time, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf));
+
+        ~UKF(); //deconstructor
+
         /*
          * Predict
          */
@@ -32,12 +34,24 @@ class UKF {
          * Update
          */
         void update(MatrixXf z);
+
+        /*
+         * Computes the sigma points for the UKF using Van Der Merwe's method
+         * Parameters:
+         * x (vector): n-length vector that holds the mean/state of the filter
+         * P (matrix): Covariance of filter
+         * Returns:
+         * sigmas- Matrix of size (dim_x, 2*dim_x+1). Each col contains sigma points for 1 dimension of the problem space
+         */
+        MatrixXf generate_sigmas(VectorXf x, MatrixXf P);
     
     private:
         int x_dim, z_dim, u_dim; //dimensions that get updated with parameter values
-        int num_sigmas = 2*x_dim + 1; //from Van der Merwe's paper on the UKF
+        int num_sigmas; //number of sigma points to generate
+        float dt; //time step
+
         /*Vectors and Matricies*/
-        VectorXf x, z, u; //state, measurement, and control vectors
+        VectorXf x, z, u, y; //state, measurement, control, and residual vectors
         //P: current state covariance matrix <x rows, x cols>. Any call to the update or predict updates this variable
         //R: measurement noise matrix <z rows, z cols>
         //Q: process noise matrix
@@ -51,7 +65,14 @@ class UKF {
         //sigmas_f: Matrix that stores sigma points forwarded in time by f_x, of dimensions (2*dim_x + 1), dim_x
         //sigmas_h: Matrix that stores sigma points projected to the measurement domain by h_x, of dimensions (2*dim_x + 1), dim_z
         //y: residual
-        MatrixXf P, R, Q, K, S, SI, B, u, Wm, Wc, sigmas_f, sigmas_h, y;
+        MatrixXf P, R, Q, K, S, SI, B, sigmas_f, sigmas_h;
+        RowVectorXf Wc, Wm;
+    
+        //function pointers
+        MatrixXf (*f_x)(MatrixXf, float) = NULL;
+        MatrixXf (*h_x)(MatrixXf) = NULL;
+
+        void set_weights(); // Calculates weights according to Van Der Merwe's paper- should only be called in constructor
 
         
 };
