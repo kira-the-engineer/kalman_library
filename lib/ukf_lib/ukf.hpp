@@ -20,8 +20,14 @@ class UKF {
          * process (function): Function that moves the sigma points forward in time according to the process model. Should return a matrix of transformed 
          * sigma points. Takes in the sigma points matrix and the time step used to forward each point
          * meas (function): Function responsible for converting the prior sigma points returned by f_x into measurements. Should return a matrix
+         * alpha (float): determines spread of sigma points around the mean when generating points (small positive value btwn 0 and 1)
+         * beta (float): incorporates prior knowledge of the distribution of the mean
+         * kappa (float): Secondary scaling parameter- most often set to zero according to Van der Merwe's paper but sometimes set to 3-n for gaussians
+         * nl_add (function) - optional. For use with state/measurement variables that are nonlinear like angles
+         * nl_subtract (function) - optional. For use with state/measurement variables that are nonlinear like angles
          */ 
-        UKF(int dim_x, int dim_z, int dim_u, float time, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf));
+        UKF(int dim_x, int dim_z, int dim_u, float time, float alpha, float beta, float kappa, MatrixXf (*process)(MatrixXf, float), 
+            MatrixXf (*meas)(MatrixXf), VectorXf (*nl_add)(VectorXf, VectorXf), VectorXf (*nl_sub)(VectorXf, VectorXf));
 
         ~UKF(); //deconstructor
 
@@ -41,14 +47,31 @@ class UKF {
          * x (vector): n-length vector that holds the mean/state of the filter
          * P (matrix): Covariance of filter
          * Returns:
-         * sigmas- Matrix of size (dim_x, 2*dim_x+1). Each col contains sigma points for 1 dimension of the problem space
+         * sigmas: Matrix of size (dim_x, 2*dim_x+1). Each col contains sigma points for 1 dimension of the problem space
          */
         MatrixXf generate_sigmas(VectorXf x, MatrixXf P);
+
+        /*
+         * Performs the unscented transform according to Van der Merwe's Paper- called in both update and predict fxns
+         *
+         * Parameters:
+         * sigmas (Matrix): either the process or measurement sigma Matrix depending on whether we're in the predict or update fxn
+         * wm, wc (Row Vectors): weights for the covariance and mean sigma points
+         * r_q (Matrix): R (measurement noise) or Q (process noise) matrix depending on if we're updating or predicting
+         * xp_zp (vector): Prior mean or measurement mean vectors (passed in by pointer to update)
+         * Pp_Pz (Matrix): Prior covariance (Pp) or measurement covariance matrix (passed in by pointer to update)
+         */
+        void unscented_transform(MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf r_q, VectorXf* xp_zp, MatrixXf* Pp_Pz);
     
     private:
         int x_dim, z_dim, u_dim; //dimensions that get updated with parameter values
         int num_sigmas; //number of sigma points to generate
         float dt; //time step
+        bool add; //flag to use non-linear add function
+        bool sub; //flag to use non-linear subtract function
+
+        /*sigma parameters*/
+        float beta, kappa, alpha;
 
         /*Vectors and Matricies*/
         VectorXf x, z, u, y; //state, measurement, control, and residual vectors
@@ -71,8 +94,10 @@ class UKF {
         //function pointers
         MatrixXf (*f_x)(MatrixXf, float) = NULL;
         MatrixXf (*h_x)(MatrixXf) = NULL;
+        VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL;
+        VectorXf (*nl_add)(VectorXf, VectorXf) = NULL;
 
-        void set_weights(); // Calculates weights according to Van Der Merwe's paper- should only be called in constructor
+        void set_weights(float a, float b, float k, int n); // Calculates weights according to Van Der Merwe's paper- should only be called in constructor
 
         
 };
