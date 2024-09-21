@@ -1,7 +1,7 @@
 #include "ukf.hpp"
 
-UKF::UKF(int x, int z, int u = 1, float time, float a, float b, float k = 0.0, MatrixXf (*process)(MatrixXf, float), 
-    MatrixXf (*meas)(MatrixXf), VectorXf (*nl_add)(VectorXf, VectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL){
+UKF::UKF(int x, int z, float time, float a, float b, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf), 
+    VectorXf (*nl_add)(VectorXf, VectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL, float k = 0.0, int u = 1){
     //set dims first
     this->x_dim = x;
     this->z_dim = z;
@@ -67,10 +67,30 @@ UKF::~UKF(){
 
 void UKF::set_weights(float a, float b, float k, int n){
     //note n is the dimensionality of the state vector!
-    float lambda = pow(a, 2) * (n + k) - n;
-    this->Wc.fill(1. / (2*(n + lambda))); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
-    this->Wm.fill(1. / (2*(n + lambda))); //Wm[i] = 1/(2(n + lambda)) where i = 1..2n
-    this->Wc(0) = lambda / (n + lambda) + (1. - pow(a, 2) + b); //Wc[0] = lambda/(n + lambda) + 1 - alpha^2 + beta
-    this->Wm(0) = lambda / (n + lambda); //Wm[0] = lambda/(n + lambda)
+    this->lambda = pow(a, 2) * (n + k) - n;
+    this->Wc.fill(1. / (2*(n + this->lambda))); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
+    this->Wm.fill(1. / (2*(n + this->lambda))); //Wm[i] = 1/(2(n + lambda)) where i = 1..2n
+    this->Wc(0) = this->lambda / (n + this->lambda) + (1. - pow(a, 2) + b); //Wc[0] = lambda/(n + lambda) + 1 - alpha^2 + beta
+    this->Wm(0) = this->lambda / (n + this->lambda); //Wm[0] = lambda/(n + lambda)
 }
 
+MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
+    MatrixXf sigmas, chol;
+    VectorXf row_i; //vectors to store chol(i)
+    sigmas.Zero(this->num_sigmas, this->x_dim); //initialize empty matrix of (2n+1, n) where n is the dim of the state
+
+    chol = P * (this->lambda * this->x_dim);
+    chol = chol.llt().matrixU(); //take sqrt (cholesky decomp) of (n+lamba)P and return an upper triangular view
+
+    //first row of the sigma point matrix is the means
+    sigmas.row(0) = x.col(0); //assigns row 0 to elements in the column vector x
+    
+
+    for(int i = 0; i < this->x_dim; i++){
+        row_i = chol.row(i);
+        sigmas.row(i + 1) = x.col(0) + row_i;
+        sigmas.row(i + this->x_dim + 1) = x.col(0) - row_i;
+    }
+
+    return sigmas;
+}

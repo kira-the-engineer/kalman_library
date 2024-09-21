@@ -26,8 +26,8 @@ class UKF {
          * nl_add (function) - optional. For use with state/measurement variables that are nonlinear like angles
          * nl_subtract (function) - optional. For use with state/measurement variables that are nonlinear like angles
          */ 
-        UKF(int dim_x, int dim_z, int dim_u, float time, float alpha, float beta, float kappa, MatrixXf (*process)(MatrixXf, float), 
-            MatrixXf (*meas)(MatrixXf), VectorXf (*nl_add)(VectorXf, VectorXf), VectorXf (*nl_sub)(VectorXf, VectorXf));
+        UKF(int dim_x, int dim_z, float time, float alpha, float beta, MatrixXf (*process)(MatrixXf, float), 
+            MatrixXf (*meas)(MatrixXf), VectorXf (*nl_add)(VectorXf, VectorXf), VectorXf (*nl_sub)(VectorXf, VectorXf), float kappa, int dim_u);
 
         ~UKF(); //deconstructor
 
@@ -47,7 +47,7 @@ class UKF {
          * x (vector): n-length vector that holds the mean/state of the filter
          * P (matrix): Covariance of filter
          * Returns:
-         * sigmas: Matrix of size (dim_x, 2*dim_x+1). Each col contains sigma points for 1 dimension of the problem space
+         * sigmas: Matrix of size (2*dim_x+1, n). Each col contains sigma points for 1 dimension of the problem space
          */
         MatrixXf generate_sigmas(VectorXf x, MatrixXf P);
 
@@ -71,7 +71,7 @@ class UKF {
         bool sub; //flag to use non-linear subtract function
 
         /*sigma parameters*/
-        float beta, kappa, alpha;
+        float beta, kappa, alpha, lambda;
 
         /*Vectors and Matricies*/
         VectorXf x, z, u, y; //state, measurement, control, and residual vectors
