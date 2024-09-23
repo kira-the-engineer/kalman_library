@@ -16,7 +16,7 @@ add_library(ukflib ukf.cpp)
 add_executable(tukf test-ukf.cpp)
 
 target_link_libraries(tukf
-    PUBLICc
+    PUBLIC
         eigen
         ukflib
 )

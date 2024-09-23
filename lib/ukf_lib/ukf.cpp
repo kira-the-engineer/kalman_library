@@ -15,17 +15,21 @@ UKF::UKF(int x, int z, float time, float a, float b, MatrixXf (*process)(MatrixX
     this->kappa = k;
 
     //Vector initialization
-    this->x.Zero(this->x_dim);
-    this->z.Zero(this->z_dim);
-    this->u.Zero(this->u_dim);
-    this->y.Zero(this->z_dim);
+    this->x.setZero(this->x_dim);
+    this->z.setZero(this->z_dim);
+    this->u.setZero(this->u_dim);
+    this->y.setZero(this->z_dim);
+
+    //row vector init
+    this->Wc.setZero(1, this->num_sigmas);
+    this->Wm.setZero(1, this->num_sigmas);
 
     //Weights and sigmas initialization
-    this->set_weights(this->alpha, this->beta, this->kappa, this->x_dim); //initializes the covariance and mean weight row vectors
+    this->set_weights(); //initializes the covariance and mean weight row vectors
 
     //initialize zero matricies for storing the transformed sigma points
-    this->sigmas_f.Zero(this->num_sigmas, this->x_dim);
-    this->sigmas_h.Zero(this->num_sigmas, this->z_dim);
+    this->sigmas_f.setZero(this->num_sigmas, this->x_dim);
+    this->sigmas_h.setZero(this->num_sigmas, this->z_dim);
 
     //set function pointers 
     this->f_x = process;
@@ -37,10 +41,10 @@ UKF::UKF(int x, int z, float time, float a, float b, MatrixXf (*process)(MatrixX
     this->P.setIdentity(this->x_dim, this->x_dim);
     this->Q.setIdentity(this->x_dim, this->x_dim);
     this->R.setIdentity(this->z_dim, this->z_dim);
-    this->K.Zero(this->x_dim, this->z_dim);
-    this->B.Zero(this->x_dim, this->u_dim);
-    this->S.Zero(this->z_dim, this->z_dim);
-    this->SI.Zero(this->z_dim, this->z_dim);   
+    this->K.setZero(this->x_dim, this->z_dim);
+    this->B.setZero(this->x_dim, this->u_dim);
+    this->S.setZero(this->z_dim, this->z_dim);
+    this->SI.setZero(this->z_dim, this->z_dim);   
 
     //set flags
     if(this->nl_add != NULL){
@@ -65,31 +69,38 @@ UKF::~UKF(){
     //deconstructor
 }
 
-void UKF::set_weights(float a, float b, float k, int n){
-    //note n is the dimensionality of the state vector!
-    this->lambda = pow(a, 2) * (n + k) - n;
-    this->Wc.fill(1. / (2*(n + this->lambda))); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
-    this->Wm.fill(1. / (2*(n + this->lambda))); //Wm[i] = 1/(2(n + lambda)) where i = 1..2n
-    this->Wc(0) = this->lambda / (n + this->lambda) + (1. - pow(a, 2) + b); //Wc[0] = lambda/(n + lambda) + 1 - alpha^2 + beta
-    this->Wm(0) = this->lambda / (n + this->lambda); //Wm[0] = lambda/(n + lambda)
+void UKF::set_weights(){
+    this->lambda = powf(this->alpha, 2) * (this->x_dim + this->kappa) - this->x_dim;
+    this->Wc.fill(0.5 / (this->x_dim + this->lambda)); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
+    this->Wm.fill(0.5 / (this->x_dim + this->lambda)); //Wm[i] = 1/(2(n + lambda)) where i = 1..2n
+    this->Wc(0) = (this->lambda / (this->x_dim + this->lambda)) + (1.0 - powf(this->alpha, 2) + this->beta); //Wc[0] = lambda/(n + lambda) + 1 - alpha^2 + beta
+    this->Wm(0) = this->lambda / (this->x_dim + this->lambda); //Wm[0] = lambda/(n + lambda)
 }
 
 MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
     MatrixXf sigmas, chol;
     VectorXf row_i; //vectors to store chol(i)
-    sigmas.Zero(this->num_sigmas, this->x_dim); //initialize empty matrix of (2n+1, n) where n is the dim of the state
+    sigmas.setZero(this->num_sigmas, this->x_dim); //initialize empty matrix of (2n+1, n) where n is the dim of the state
 
-    chol = P * (this->lambda * this->x_dim);
+    chol = P * (this->lambda + this->x_dim);
     chol = chol.llt().matrixU(); //take sqrt (cholesky decomp) of (n+lamba)P and return an upper triangular view
 
-    //first row of the sigma point matrix is the means
+    //irst row of the sigma point matrix is the means
     sigmas.row(0) = x.col(0); //assigns row 0 to elements in the column vector x
     
 
-    for(int i = 0; i < this->x_dim; i++){
-        row_i = chol.row(i);
-        sigmas.row(i + 1) = x.col(0) + row_i;
-        sigmas.row(i + this->x_dim + 1) = x.col(0) - row_i;
+    if(this->sub == true) { //if nonlinear values are in the matrices/vectors
+        for(int i = 0; i < this->x_dim; i++){
+            sigmas.row(i + 1) = this->nl_sub(-x, -row_i);
+            sigmas.row(i + this->x_dim + 1) = this->nl_sub(x, row_i);
+        }
+    }
+    else{
+        for(int i = 0; i < this->x_dim; i++){
+            row_i = chol.row(i);
+            sigmas.row(i + 1) = x.col(0) + row_i;
+            sigmas.row(i + this->x_dim + 1) = x.col(0) - row_i;
+        }
     }
 
     return sigmas;

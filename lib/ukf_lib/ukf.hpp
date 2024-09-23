@@ -1,7 +1,12 @@
-#include "eigen.h"
+// for use when building on MCU
+// #include "eigen.h"
+// #include <Eigen/Cholesky>
+// #include <Eigen/LU>
+
+#include "src_eigen/eigen.h"
 #include "math.h"
-#include <Eigen/Cholesky>
-#include <Eigen/LU>
+#include "src_eigen/Eigen/Cholesky"
+#include "src_eigen/Eigen/LU"
 
 using namespace Eigen;
 using namespace std;
@@ -97,7 +102,7 @@ class UKF {
         VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL;
         VectorXf (*nl_add)(VectorXf, VectorXf) = NULL;
 
-        void set_weights(float a, float b, float k, int n); // Calculates weights according to Van Der Merwe's paper- should only be called in constructor
+        void set_weights(); // Calculates weights according to Van Der Merwe's paper- should only be called in constructor
 
         
 };
