@@ -18,15 +18,16 @@ MatrixXf h_x(MatrixXf x) {
    return hout;
 }
 
-int main(){
-   UKF ukf = UKF(2, 1, 1, .3, 2., f_x, h_x, NULL, NULL, 0.1, 1);
+VectorXf sub(VectorXf a, VectorXf b) {
+   return a - b;
+}
 
+int main(){
+   UKF ukf = UKF(2, 1, 1, .3, 2., f_x, h_x, 0.1, 1);
+   ukf.init_nonlinear(NULL, sub, NULL, NULL);
    MatrixXf sigma;
    Vector2f X(0., 0.);
    Matrix2f P {{32., 15.}, {15., 40.}};
-
-
-
    sigma = ukf.generate_sigmas(X, P);
    cout << "sigma" << endl << sigma << endl;
 }

@@ -54,6 +54,20 @@ UKF::~UKF(){
     //deconstructor
 }
 
+void UKF::init(VectorXf x, MatrixXf P, MatrixXf Q, MatrixXf R){
+    this->state_est = x;
+    this->state_cov = P;
+    this->proc_err = Q;
+    this->meas_err = R;
+}
+
+void UKF::init_nonlinear(VectorXf (*add)(VectorXf, VectorXf) = NULL, VectorXf (*sub)(VectorXf, VectorXf) = NULL, VectorXf (*ux)(MatrixXf, RowVectorXf) = NULL, VectorXf (*uz)(MatrixXf, RowVectorXf) = NULL) {
+    this->nl_add = add;
+    this->nl_sub = sub;
+    this->state_mean = ux;
+    this->meas_mean = uz;
+}
+
 void UKF::set_weights(){
     this->lambda = powf(this->alpha, 2) * (this->s_dim + this->kappa) - this->s_dim;
     this->W_cov.fill(0.5 / (this->s_dim + this->lambda)); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
@@ -70,15 +84,24 @@ MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
     chol = P * (this->lambda + this->s_dim);
     chol = chol.llt().matrixU(); //take sqrt (cholesky decomp) of (n+lamba)P and return an upper triangular view
 
-    //irst row of the sigma point matrix is the means
-    sigmas.row(0) = x.col(0); //assigns row 0 to elements in the column vector x
-    
-    for(int i = 0; i < this->s_dim; i++){
+    //first row of the sigma point matrix is the means
+    sigmas.row(0) = x.col(0); //assigns row 0 to elements in the mean vector
+
+
+    if(this->nl_sub != NULL) { //if nonlinear values are in the matrices/vectors
+        for(int i = 0; i < this->s_dim; i++){
+            row_i = chol.row(i);
+            sigmas.row(i + 1) = this->nl_sub(-x, -row_i);
+            sigmas.row(i + this->s_dim + 1) = this->nl_sub(x, row_i);
+        }
+    }
+    else{
+        for(int i = 0; i < this->s_dim; i++){
             row_i = chol.row(i);
             sigmas.row(i + 1) = x.col(0) + row_i;
             sigmas.row(i + this->s_dim + 1) = x.col(0) - row_i;
+        }
     }
-    
 
     return sigmas;
 }

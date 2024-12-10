@@ -34,6 +34,19 @@ class UKF {
 
         ~UKF(); //deconstructor
 
+
+        /*
+         * Init
+         * Function that allows the end user to specify initial values for the state vector, process covariance, process noise, and measurement noise matricies. Should only be called once.
+         */
+        void init(VectorXf state, MatrixXf proc_cov, MatrixXf proc_noise, MatrixXf meas_noise);
+
+        /*
+         * Function that allows user to set internal function pointers to functions for working with nonlinear states/measurements. For example, many localization problems use angular states
+         * which need to be normalized to ensure validity. If NULL pointers are passed- no change will happen and the default subtract, add, and mean functions are used. 
+         */
+        void init_nonlinear(VectorXf (*add)(VectorXf, VectorXf), VectorXf (*sub)(VectorXf, VectorXf), VectorXf (*ux)(MatrixXf, RowVectorXf), VectorXf (*uz)(MatrixXf, RowVectorXf));
+
         /*
          * Predict
          */
@@ -99,8 +112,15 @@ class UKF {
 
 
         //function pointers
-        MatrixXf (*f_x)(MatrixXf, float) = NULL;
-        MatrixXf (*h_x)(MatrixXf) = NULL;
+        MatrixXf (*f_x)(MatrixXf, float) = NULL; //transformation function to forward sigma points according to process model
+        MatrixXf (*h_x)(MatrixXf) = NULL; //transformation function to forward sigma points according to measurement model
+
+        //nonlinear functions
+        VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL; //Used for calculating the residual when there are nonlinear values that need to be normalized (like angles)
+        VectorXf (*nl_add)(VectorXf, VectorXf) = NULL; //used to add vectors with nonlinear values when updating the state estimate
+        VectorXf (*state_mean)(MatrixXf sigmas_s, RowVectorXf W_mean) = NULL; //used to take the mean of non-linear state variables (for example, averaging angles usually involves using atan2)
+        VectorXf (*meas_mean)(MatrixXf sigmas_h, RowVectorXf W_mean) = NULL; //same as above, but called when there are non-linear variables in the measurement (this is so the two can be called independantly)
+
 
         void set_weights(); // Calculates weights according to Van Der Merwe's paper- should only be called in constructor
 
