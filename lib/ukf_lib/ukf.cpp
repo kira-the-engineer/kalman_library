@@ -91,17 +91,51 @@ MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
     if(this->nl_sub != NULL) { //if nonlinear values are in the matrices/vectors
         for(int i = 0; i < this->s_dim; i++){
             row_i = chol.row(i);
-            sigmas.row(i + 1) = this->nl_sub(-x, -row_i);
+            sigmas.row(i + 1) = this->nl_sub(x, -row_i);
             sigmas.row(i + this->s_dim + 1) = this->nl_sub(x, row_i);
         }
     }
     else{
         for(int i = 0; i < this->s_dim; i++){
             row_i = chol.row(i);
-            sigmas.row(i + 1) = x.col(0) + row_i;
-            sigmas.row(i + this->s_dim + 1) = x.col(0) - row_i;
+            sigmas.row(i + 1) = x + row_i;
+            sigmas.row(i + this->s_dim + 1) = x - row_i;
         }
     }
 
     return sigmas;
+}
+
+void UKF::unscented_transform(VectorXf &m, MatrixXf &c, MatrixXf sigma, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*mean)(MatrixXf, RowVectorXf), VectorXf(*sub)(VectorXf, VectorXf)) {
+    //calculate the mean of the sigma points first
+    if(mean != NULL){
+        m = mean(sigma, this->W_mean);
+    }
+    else{
+        //find the inner product of the sigma points and the mean weights
+        m = sigma * wm; //this is really just equivalent to taking a dot product since we're multiplying a vector by a matrix. This is equivalent to the inner product
+    }
+
+    //now calculate the covariance
+    VectorXf y;
+    for(int i = 0; i < this->num_sigmas; i++){
+        if(sub != NULL){
+            y = nl_sub(sigma.row(i), m); //deal with nonlinear values in calculating the difference between the sigma points and the mean vector
+        }
+        else{
+            y = sigma.row(i) - m; //if values are linear, normal vector subtraction is just fine
+        }
+        c += wc.col(i) * (y * y.transpose()); // Cov = Sum(cov_weight * ([sigmas[i] - mean][sigmas[i] - mean]^T)). Or the covariance is equal to the sum of the covariance weights multiplied by the outer product of
+                                              // the difference vector/residual between the sigma points and the mean
+    }
+    c += noise; //add in noise
+
+}
+
+void UKF::predict(){
+
+}
+
+void UKF::update(MatrixXf z){
+    
 }

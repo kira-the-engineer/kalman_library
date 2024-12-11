@@ -8,6 +8,7 @@
 #include "src_eigen/Eigen/Cholesky"
 #include "src_eigen/Eigen/LU"
 
+
 using namespace Eigen;
 using namespace std;
 
@@ -69,15 +70,16 @@ class UKF {
 
         /*
          * Performs the unscented transform according to Van der Merwe's Paper- called in both update and predict fxns
-         *
+         * Used to calculate the mean and covariance of the sigma points
          * Parameters:
-         * sigmas (Matrix): either the process or measurement sigma Matrix depending on whether we're in the predict or update fxn
-         * wm, wc (Row Vectors): weights for the covariance and mean sigma points
-         * r_q (Matrix): R (measurement noise) or Q (process noise) matrix depending on if we're updating or predicting
-         * xp_zp (vector): Prior mean or measurement mean vectors (passed in by pointer to update)
-         * Pp_Pz (Matrix): Prior covariance (Pp) or measurement covariance matrix (passed in by pointer to update)
+         * mean: used to update pointer to the mean vector
+         * cov: used to update pointer to the covariance vector
+         * sigmas: Matrix of sigma points to pass through the transformation functions (fx/hx)
+         * noise: Noise matrix to add to the final calculated covariance. If the system/measurements are noiseless (not likely), this would be a zero matrix.
+         * nl_mean: (optional): a function that deals with nonlinear values in the state/measurement when calculating the mean
+         * nl_sub (optional): a function that supports nonlinearity in getting the difference between the sigma points and the mean vector
          */
-        void unscented_transform(MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf r_q, VectorXf* xp_zp, MatrixXf* Pp_Pz);
+        void unscented_transform(VectorXf &mean, MatrixXf &cov, MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
     
     private:
         int s_dim, m_dim, c_dim; //dimensions that get updated with parameter values
