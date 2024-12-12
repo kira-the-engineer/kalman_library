@@ -1,49 +1,30 @@
 #include "ukf.hpp"
 
-UKF::UKF(int x, int z, float time, float a, float b, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf), float k = 0.0, int u = 1){
-    //set dims first
-    this->s_dim = x;
-    this->m_dim = z;
-    this->c_dim = u;
-    this->num_sigmas = 2*this->s_dim + 1;
+UKF::UKF(MatrixXf state, MatrixXf cov, MatrixXf proc_noise, MatrixXf meas_noise, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf)){
+    //initialize vectors first
+    this->state = state; //set to intial value
+    this->data.setZero(MEASUREMENT_DIM);
+    this->residual.setZero(MEASUREMENT_DIM);
 
-    /*set floats*/
-    this->dt = time;
-    this->alpha = a;
-    this->beta = b;
-    this->kappa = k;
+    //initialize weights
+    this->set_weights();
 
-    //Vector initialization
-    this->state_est.setZero(this->s_dim); //state est vector
-    this->data.setZero(this->m_dim); //measurements vector
-    this->control.setZero(this->c_dim); //control vector
-    this->residual.setZero(this->m_dim); //residual
+    //initialize matrices for storing sigma points
+    this->sigma_s.setZero(this->num_sigmas, STATE_DIM);
+    this->sigmas_m.setZero(this->num_sigmas, MEASUREMENT_DIM);
 
-    //row vector init
-    this->W_mean.setZero(1, this->num_sigmas);
-    this->W_cov.setZero(1, this->num_sigmas);
+    //initialize other matrices
+    this->state_cov = cov;
+    this->proc_err = proc_noise;
+    this->meas_cov.setZero(MEASUREMENT_DIM, MEASUREMENT_DIM);
+    this->meas_covI.setZero(MEASUREMENT_DIM, MEASUREMENT_DIM);
+    this->meas_err = meas_noise;
+    this->gain.setZero(STATE_DIM, MEASUREMENT_DIM);
+    this->cross_cov.setZero(STATE_DIM, MEASUREMENT_DIM);
 
-
-    //Weights and sigmas initialization
-    this->set_weights(); //initializes the covariance and mean weight row vectors
-
-    //initialize zero matricies for storing the transformed sigma points
-    this->sigmas_s.setZero(this->num_sigmas, this->s_dim);
-    this->sigmas_m.setZero(this->num_sigmas, this->m_dim);
-
-    //set function pointers 
+    //set function pointers
     this->f_x = process;
     this->h_x = meas;
-
-    //Set matricies
-    this->state_cov.setIdentity(this->s_dim, this->s_dim);
-    this->proc_err.setIdentity(this->s_dim, this->s_dim);
-    this->meas_cov.setZero(this->m_dim, this->m_dim);
-    this->meas_covI.setZero(this->m_dim, this->m_dim);
-    this->meas_err.setIdentity(this->m_dim, this->m_dim);
-    this->gain.setZero(this->s_dim, this->m_dim);
-    this->control_mat.setZero(this->s_dim, this->c_dim);
-    this->cross_cov.setZero(this->s_dim, this->m_dim);
 }
 
 UKF::UKF(){
@@ -54,88 +35,82 @@ UKF::~UKF(){
     //deconstructor
 }
 
-void UKF::init(VectorXf x, MatrixXf P, MatrixXf Q, MatrixXf R){
-    this->state_est = x;
-    this->state_cov = P;
-    this->proc_err = Q;
-    this->meas_err = R;
-}
-
-void UKF::init_nonlinear(VectorXf (*add)(VectorXf, VectorXf) = NULL, VectorXf (*sub)(VectorXf, VectorXf) = NULL, VectorXf (*ux)(MatrixXf, RowVectorXf) = NULL, VectorXf (*uz)(MatrixXf, RowVectorXf) = NULL) {
-    this->nl_add = add;
-    this->nl_sub = sub;
-    this->state_mean = ux;
-    this->meas_mean = uz;
-}
+// void UKF::init_nonlinear(VectorXf (*add)(VectorXf, VectorXf) = NULL, VectorXf (*sub)(VectorXf, VectorXf) = NULL, VectorXf (*ux)(MatrixXf, RowVectorXf) = NULL, VectorXf (*uz)(MatrixXf, RowVectorXf) = NULL) {
+//     this->nl_add = add;
+//     this->nl_sub = sub;
+//     this->state_mean = ux;
+//     this->meas_mean = uz;
+// }
 
 void UKF::set_weights(){
-    this->lambda = powf(this->alpha, 2) * (this->s_dim + this->kappa) - this->s_dim;
-    this->W_cov.fill(0.5 / (this->s_dim + this->lambda)); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
-    this->W_mean.fill(0.5 / (this->s_dim + this->lambda)); //Wm[i] = 1/(2(n + lambda)) where i = 1..2n
-    this->W_cov(0) = (this->lambda / (this->s_dim + this->lambda)) + (1.0 - powf(this->alpha, 2) + this->beta); //Wc[0] = lambda/(n + lambda) + 1 - alpha^2 + beta
-    this->W_mean(0) = this->lambda / (this->s_dim + this->lambda); //Wm[0] = lambda/(n + lambda)
+    this->lambda = powf(ALPHA, 2) * (STATE_DIM + KAPPA) - STATE_DIM;
+    this->w_cov.fill(0.5 / (STATE_DIM + this->lambda)); //Wc[i] = 1/(2(n + lambda)) where i = 1..2n
+    this->w_mean.fill(0.5 / (STATE_DIM + this->lambda)); //Wm[i] = 1/(2(n + lambda)) where i = 1..2n
+    this->w_cov(0) = (this->lambda / (STATE_DIM + this->lambda)) + (1.0 - powf(ALPHA, 2) + BETA); //Wc[0] = lambda/(n + lambda) + 1 - alpha^2 + beta
+    this->w_mean(0) = this->lambda / (STATE_DIM + this->lambda); //Wm[0] = lambda/(n + lambda)
 }
 
-MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
-    MatrixXf sigmas, chol;
-    VectorXf row_i; //vectors to store chol(i)
-    sigmas.setZero(this->num_sigmas, this->s_dim); //initialize empty matrix of (2n+1, n) where n is the dim of the state
+// MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
+//     MatrixXf sigmas, chol;
+//     VectorXf row_i; //vectors to store chol(i)
+//     sigmas.setZero(this->num_sigmas, this->s_dim); //initialize empty matrix of (2n+1, n) where n is the dim of the state
 
-    chol = P * (this->lambda + this->s_dim);
-    chol = chol.llt().matrixU(); //take sqrt (cholesky decomp) of (n+lamba)P and return an upper triangular view
+//     chol = P * (this->lambda + this->s_dim);
+//     chol = chol.llt().matrixU(); //take sqrt (cholesky decomp) of (n+lamba)P and return an upper triangular view
 
-    //first row of the sigma point matrix is the means
-    sigmas.row(0) = x.col(0); //assigns row 0 to elements in the mean vector
+//     //first row of the sigma point matrix is the means
+//     sigmas.row(0) = x.col(0); //assigns row 0 to elements in the mean vector
 
 
-    if(this->nl_sub != NULL) { //if nonlinear values are in the matrices/vectors
-        for(int i = 0; i < this->s_dim; i++){
-            row_i = chol.row(i);
-            sigmas.row(i + 1) = this->nl_sub(x, -row_i);
-            sigmas.row(i + this->s_dim + 1) = this->nl_sub(x, row_i);
-        }
-    }
-    else{
-        for(int i = 0; i < this->s_dim; i++){
-            row_i = chol.row(i);
-            sigmas.row(i + 1) = x + row_i;
-            sigmas.row(i + this->s_dim + 1) = x - row_i;
-        }
-    }
+//     if(this->nl_sub != NULL) { //if nonlinear values are in the matrices/vectors
+//         for(int i = 0; i < this->s_dim; i++){
+//             row_i = chol.row(i);
+//             sigmas.row(i + 1) = this->nl_sub(x, -row_i);
+//             sigmas.row(i + this->s_dim + 1) = this->nl_sub(x, row_i);
+//         }
+//     }
+//     else{
+//         for(int i = 0; i < this->s_dim; i++){
+//             row_i = chol.row(i);
+//             sigmas.row(i + 1) = x + row_i;
+//             sigmas.row(i + this->s_dim + 1) = x - row_i;
+//         }
+//     }
 
-    return sigmas;
-}
+//     return sigmas;
+// }
 
-void UKF::unscented_transform(VectorXf &m, MatrixXf &c, MatrixXf sigma, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*mean)(MatrixXf, RowVectorXf), VectorXf(*sub)(VectorXf, VectorXf)) {
-    //calculate the mean of the sigma points first
-    if(mean != NULL){
-        m = mean(sigma, this->W_mean);
-    }
-    else{
-        //find the inner product of the sigma points and the mean weights
-        m = sigma * wm; //this is really just equivalent to taking a dot product since we're multiplying a vector by a matrix. This is equivalent to the inner product
-    }
+// void UKF::unscented_transform(VectorXf &m, MatrixXf &c, MatrixXf sigma, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*mean)(MatrixXf, RowVectorXf), VectorXf(*sub)(VectorXf, VectorXf)) {
+//     //calculate the mean of the sigma points first
+//     if(mean != NULL){
+//         m = mean(sigma, this->W_mean);
+//     }
+//     else{
+//         //find the inner product of the sigma points and the mean weights
+//         m = wm * sigma; //this is really just equivalent to taking a dot product since we're multiplying a vector by a matrix. This is equivalent to the inner product
+//     }
 
-    //now calculate the covariance
-    VectorXf y;
-    for(int i = 0; i < this->num_sigmas; i++){
-        if(sub != NULL){
-            y = nl_sub(sigma.row(i), m); //deal with nonlinear values in calculating the difference between the sigma points and the mean vector
-        }
-        else{
-            y = sigma.row(i) - m; //if values are linear, normal vector subtraction is just fine
-        }
-        c += wc.col(i) * (y * y.transpose()); // Cov = Sum(cov_weight * ([sigmas[i] - mean][sigmas[i] - mean]^T)). Or the covariance is equal to the sum of the covariance weights multiplied by the outer product of
-                                              // the difference vector/residual between the sigma points and the mean
-    }
-    c += noise; //add in noise
+//     //now calculate the covariance
+//     VectorXf y;
+//     MatrixXf c_temp;
+//     c_temp.setZero(this->num_sigmas, c.cols());
+//     for(int i = 0; i < this->num_sigmas; i++){
+//         if(sub != NULL){
+//             y = nl_sub(sigma.row(i), m); //deal with nonlinear values in calculating the difference between the sigma points and the mean vector
+//         }
+//         else{
+//             y = sigma.row(i) - m; //if values are linear, normal vector subtraction is just fine
+//         }
+//         c_temp = c_temp + (wc.col(i) * (y * y.transpose())); // Cov = Sum(cov_weight * ([sigmas[i] - mean][sigmas[i] - mean]^T)). Or the covariance is equal to the sum of the covariance weights multiplied by the outer product of
+//                                               // the difference vector/residual between the sigma points and the mean
+//     }
+//     c_temp = c_temp + noise; //add in noise
+//     c = c_temp;
+// }
 
-}
+// void UKF::predict(){
+// }
 
-void UKF::predict(){
+// void UKF::update(MatrixXf z){
 
-}
-
-void UKF::update(MatrixXf z){
-    
-}
+// }

@@ -22,12 +22,17 @@ VectorXf sub(VectorXf a, VectorXf b) {
    return a - b;
 }
 
+RowVectorXf nl_xy(float x, float y)   {
+   RowVector2f out;
+   out << x + y, .1 * pow(x, 2) + y * y;
+   return out;
+}
+
 int main(){
-   UKF ukf = UKF(2, 1, 1, .3, 2., f_x, h_x, 0.1, 1);
-   ukf.init_nonlinear(NULL, sub, NULL, NULL);
-   MatrixXf sigma;
-   Vector2f X(0., 0.);
+   Matrix<float, 2, 1> X{{0.}, {0.}};
    Matrix2f P {{32., 15.}, {15., 40.}};
-   sigma = ukf.generate_sigmas(X, P);
-   cout << "sigma" << endl << sigma << endl;
+   Matrix2f Q {{0., 0.}, {0., 0.}};
+   Matrix2f R {{0, 0}, {0, 0}};
+
+   UKF ukf = UKF(X, P, Q, R, f_x, h_x);
 }
