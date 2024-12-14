@@ -10,8 +10,8 @@ UKF::UKF(MatrixXf state, MatrixXf cov, MatrixXf proc_noise, MatrixXf meas_noise,
     this->set_weights();
 
     //initialize matrices for storing sigma points
-    this->sigma_s.setZero(this->num_sigmas, STATE_DIM);
-    this->sigmas_m.setZero(this->num_sigmas, MEASUREMENT_DIM);
+    this->sigma_s.setZero(2 * STATE_DIM + 1, STATE_DIM);
+    this->sigmas_m.setZero(2 * STATE_DIM + 1, MEASUREMENT_DIM);
 
     //initialize other matrices
     this->state_cov = cov;
@@ -35,12 +35,12 @@ UKF::~UKF(){
     //deconstructor
 }
 
-// void UKF::init_nonlinear(VectorXf (*add)(VectorXf, VectorXf) = NULL, VectorXf (*sub)(VectorXf, VectorXf) = NULL, VectorXf (*ux)(MatrixXf, RowVectorXf) = NULL, VectorXf (*uz)(MatrixXf, RowVectorXf) = NULL) {
-//     this->nl_add = add;
-//     this->nl_sub = sub;
-//     this->state_mean = ux;
-//     this->meas_mean = uz;
-// }
+void UKF::init_nonlinear(VectorXf (*add)(VectorXf, VectorXf) = NULL, VectorXf (*sub)(VectorXf, VectorXf) = NULL, VectorXf (*ux)(MatrixXf, RowVectorXf) = NULL, VectorXf (*uz)(MatrixXf, RowVectorXf) = NULL) {
+    this->nl_add = add;
+    this->nl_sub = sub;
+    this->state_mean = ux;
+    this->meas_mean = uz;
+}
 
 void UKF::set_weights(){
     this->lambda = powf(ALPHA, 2) * (STATE_DIM + KAPPA) - STATE_DIM;
@@ -50,35 +50,34 @@ void UKF::set_weights(){
     this->w_mean(0) = this->lambda / (STATE_DIM + this->lambda); //Wm[0] = lambda/(n + lambda)
 }
 
-// MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
-//     MatrixXf sigmas, chol;
-//     VectorXf row_i; //vectors to store chol(i)
-//     sigmas.setZero(this->num_sigmas, this->s_dim); //initialize empty matrix of (2n+1, n) where n is the dim of the state
+MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
+    Matrix<float,  2 * STATE_DIM + 1, STATE_DIM> sigmas; //create empty matrix to store generated sigma points in
+    Matrix<float, STATE_DIM, STATE_DIM> cholesky; //empty matrix to store the cholesky decomp result in
+    Matrix<float, STATE_DIM, 1> row_i; //vector that's used to store each row of the cholesky decom matrix for operations
 
-//     chol = P * (this->lambda + this->s_dim);
-//     chol = chol.llt().matrixU(); //take sqrt (cholesky decomp) of (n+lamba)P and return an upper triangular view
+    cholesky = P * (this->lambda + STATE_DIM);
+    cholesky = cholesky.llt().matrixU(); //take square root of the covariance matrix scaled by (n + lambda) where n is the dimension of the state. Returns an upper triangular view of the matrix
 
-//     //first row of the sigma point matrix is the means
-//     sigmas.row(0) = x.col(0); //assigns row 0 to elements in the mean vector
+    //The first row of the sigma point matrix is the means
+    sigmas.row(0) = x;
+    
+    if(this->nl_sub != NULL) { //if nonlinear values are in the matrices/vectors
+        for(int i = 0; i < STATE_DIM; i++){
+            row_i = cholesky.row(i);
+            sigmas.row(i + 1) = this->nl_sub(x, -row_i);
+            sigmas.row(i + STATE_DIM + 1) = this->nl_sub(x, row_i);
+        }
+    }
+    else{
+        for(int i = 0; i < STATE_DIM; i++){
+            row_i = cholesky.row(i);
+            sigmas.row(i + 1) = x + row_i;
+            sigmas.row(i + STATE_DIM + 1) = x - row_i;
+        }
+    }
 
-
-//     if(this->nl_sub != NULL) { //if nonlinear values are in the matrices/vectors
-//         for(int i = 0; i < this->s_dim; i++){
-//             row_i = chol.row(i);
-//             sigmas.row(i + 1) = this->nl_sub(x, -row_i);
-//             sigmas.row(i + this->s_dim + 1) = this->nl_sub(x, row_i);
-//         }
-//     }
-//     else{
-//         for(int i = 0; i < this->s_dim; i++){
-//             row_i = chol.row(i);
-//             sigmas.row(i + 1) = x + row_i;
-//             sigmas.row(i + this->s_dim + 1) = x - row_i;
-//         }
-//     }
-
-//     return sigmas;
-// }
+    return sigmas;
+}
 
 // void UKF::unscented_transform(VectorXf &m, MatrixXf &c, MatrixXf sigma, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*mean)(MatrixXf, RowVectorXf), VectorXf(*sub)(VectorXf, VectorXf)) {
 //     //calculate the mean of the sigma points first

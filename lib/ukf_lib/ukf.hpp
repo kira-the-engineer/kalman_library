@@ -33,7 +33,7 @@ class UKF {
          * Function that allows user to set internal function pointers to functions for working with nonlinear states/measurements. For example, many localization problems use angular states
          * which need to be normalized to ensure validity. If NULL pointers are passed- no change will happen and the default subtract, add, and mean functions are used. 
          */
-        //void init_nonlinear(VectorXf (*add)(VectorXf, VectorXf), VectorXf (*sub)(VectorXf, VectorXf), VectorXf (*ux)(MatrixXf, RowVectorXf), VectorXf (*uz)(MatrixXf, RowVectorXf));
+        void init_nonlinear(VectorXf (*add)(VectorXf, VectorXf), VectorXf (*sub)(VectorXf, VectorXf), VectorXf (*ux)(MatrixXf, RowVectorXf), VectorXf (*uz)(MatrixXf, RowVectorXf));
 
         /*
          * Predict
@@ -43,7 +43,7 @@ class UKF {
         /*
          * Update
          */
-        //void update(MatrixXf z);
+        void update(MatrixXf z);
 
         /*
          * Computes the sigma points for the UKF using Van Der Merwe's method
@@ -53,7 +53,7 @@ class UKF {
          * Returns:
          * sigmas: Matrix of size (2*dim_x+1, n). Each col contains sigma points for 1 dimension of the problem space
          */
-        //MatrixXf generate_sigmas(VectorXf mean, MatrixXf cov);
+        MatrixXf generate_sigmas(VectorXf mean, MatrixXf cov);
 
         /*
          * Performs the unscented transform according to Van der Merwe's Paper- called in both update and predict fxns
@@ -66,11 +66,9 @@ class UKF {
          * nl_mean: (optional): a function that deals with nonlinear values in the state/measurement when calculating the mean
          * nl_sub (optional): a function that supports nonlinearity in getting the difference between the sigma points and the mean vector
          */
-        //void unscented_transform(VectorXf &mean, MatrixXf &cov, MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
+        void unscented_transform(VectorXf &mean, MatrixXf &cov, MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
     
     private:
-        int num_sigmas = 2 * STATE_DIM + 1; //number of sigma points to generate
-
         /*sigma parameters*/
         float lambda;
 

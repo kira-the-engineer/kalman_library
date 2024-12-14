@@ -5,8 +5,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#include <stdlib.h>
-
 /*Set Dimensions*/
 #define STATE_DIM 2 //(int like) this macro controls how many states are estimated by the filter. For example if we wanted to use the 
                       //UKF to estimate position and velocity in 1D- we'd have 2 states
