@@ -3,10 +3,10 @@
  * use "config.h"!
 */
 
+#include "config.h"
 #include "eigen.h"
 #include <Eigen/Cholesky>
 #include <Eigen/LU>
-#include "config.h"
 
 using namespace Eigen;
 using namespace std;
@@ -25,7 +25,7 @@ class UKF {
          * sigma points. Takes in the sigma points matrix and the time step used to forward each point
          * meas (function): Function responsible for converting the prior sigma points returned by f_x into measurements. Should return a matrix
          */
-        UKF(MatrixXf state, MatrixXf cov, MatrixXf proc_noise, MatrixXf meas_noise, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf));
+        UKF(VectorXf state, MatrixXf cov, MatrixXf proc_noise, MatrixXf meas_noise, MatrixXf (*process)(MatrixXf, float), MatrixXf (*meas)(MatrixXf));
 
         ~UKF(); //deconstructor
 
@@ -43,7 +43,7 @@ class UKF {
         /*
          * Update
          */
-        void update(MatrixXf z);
+        void update(VectorXf z);
 
         /*
          * Computes the sigma points for the UKF using Van Der Merwe's method
@@ -66,7 +66,7 @@ class UKF {
          * nl_mean: (optional): a function that deals with nonlinear values in the state/measurement when calculating the mean
          * nl_sub (optional): a function that supports nonlinearity in getting the difference between the sigma points and the mean vector
          */
-        void unscented_transform(VectorXf &mean, MatrixXf &cov, MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
+        void unscented_transform(Ref<VectorXf> mean, Ref<MatrixXf> cov, MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
     
     private:
         /*sigma parameters*/
@@ -78,13 +78,13 @@ class UKF {
         //state: Stores the estimate of the state (mean). Updated whenever the predict-update sequence is called. Denoted as "x" in literature
         //data: Stores data from sensors/signals. Denoted as "z" in literature
         //residual: vector that's updated whenever update is called. The error between the data points and their calculated mean
-        Matrix<float, STATE_DIM, 1> state;
-        Matrix<float, MEASUREMENT_DIM, 1> data;
-        Matrix<float, MEASUREMENT_DIM, 1> residual;
+        Vector<float, STATE_DIM> state;
+        Vector<float, MEASUREMENT_DIM> data;
+        Vector<float, MEASUREMENT_DIM> residual;
 
         //Weight vectors
-        Matrix<float, 1, 2*STATE_DIM+1> w_mean;
-        Matrix<float, 1, 2*STATE_DIM+1> w_cov;
+        RowVector<float, 2*STATE_DIM+1> w_mean;
+        RowVector<float, 2*STATE_DIM+1> w_cov;
 
 
         //Matricies

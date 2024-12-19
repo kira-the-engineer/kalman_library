@@ -18,9 +18,9 @@
  * state, the tuning parameters defined here determine how closely the sigma points match the moments
  */
 
-#define ALPHA 1.0 //(float like). Changing this parameter determines how far/close the sigma points are to the mean
+#define ALPHA 0.3 //(float like). Changing this parameter determines how far/close the sigma points are to the mean
 #define BETA 2.0 //(float like). This parameter is used to incorporate prior knowledge about the distribution of the state. Helps minimize errors in the covariance estimate. 
-#define KAPPA 0.3 //(float like). Additional scaling parameter that determines how far the points are spread around the mean
+#define KAPPA 0.1 //(float like). Additional scaling parameter that determines how far the points are spread around the mean
 
 #define TIME_STEP 0.1 //(float like) time between each step in seconds (dt)
 
