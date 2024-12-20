@@ -45,16 +45,27 @@ void setup() {
    }
    Serial.println(); 
 
-   RowVector<float, 5> wm{-9.582,  2.646,  2.646,  2.646,  2.646};
-   RowVector<float, 5> wc{-6.672,  2.646,  2.646,  2.646,  2.646};
-
    Matrix<float, 2 * STATE_DIM + 1, STATE_DIM>sigmas_f;
-   sigmas_f.Zero();
-   for(int i = 0; i < 5; i++){
-      sigmas_f.row(i) = nl_xy(sigmas(i, 0), sigmas(i, 1));
-   }   
+   sigmas_f.setZero();
+   for(int i = 0; i < 2 * STATE_DIM + 1; i++){
+      sigmas_f(i, 0) = sigmas(i, 0) + sigmas(i, 1);
+      sigmas_f(i, 1) = .1 * powf(sigmas(i, 0), 2) + sigmas(i, 1) * sigmas(i, 1);
+   }
 
-   ukf.unscented_transform(X, P, sigmas_f, wm, wc, Q, NULL, NULL);
+   Serial.println("Transformed sigmas");
+   for (int i=0; i< 2 * STATE_DIM + 1; i++)
+   {
+       for (int j=0; j < STATE_DIM; j++)
+       {
+           Serial.print(sigmas_f(i,j), 6);   // print 6 decimal places
+           Serial.print(", ");
+       }
+       Serial.println();
+   }
+   Serial.println();
+
+
+   ukf.unscented_transform(X, P, sigmas_f, Q, NULL, NULL);
 
 
    Serial.println("Transformed Mean");

@@ -66,7 +66,7 @@ class UKF {
          * nl_mean: (optional): a function that deals with nonlinear values in the state/measurement when calculating the mean
          * nl_sub (optional): a function that supports nonlinearity in getting the difference between the sigma points and the mean vector
          */
-        void unscented_transform(Ref<VectorXf> mean, Ref<MatrixXf> cov, MatrixXf sigmas, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
+        void unscented_transform(Ref<VectorXf> mean, Ref<MatrixXf> cov, MatrixXf sigmas, MatrixXf noise, VectorXf (*nl_mean)(MatrixXf, RowVectorXf) = NULL, VectorXf (*nl_sub)(VectorXf, VectorXf) = NULL);
     
     private:
         /*sigma parameters*/

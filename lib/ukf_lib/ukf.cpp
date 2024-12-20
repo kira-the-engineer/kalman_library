@@ -79,28 +79,27 @@ MatrixXf UKF::generate_sigmas(VectorXf x, MatrixXf P){
     return sigmas;
 }
 
-void UKF::unscented_transform(Ref<VectorXf> m, Ref<MatrixXf> c, MatrixXf sigma, RowVectorXf wm, RowVectorXf wc, MatrixXf noise, VectorXf (*mean)(MatrixXf, RowVectorXf), VectorXf(*sub)(VectorXf, VectorXf)) {
+void UKF::unscented_transform(Ref<VectorXf> m, Ref<MatrixXf> c, MatrixXf sigma, MatrixXf noise, VectorXf (*mean)(MatrixXf, RowVectorXf), VectorXf(*sub)(VectorXf, VectorXf)) {
     //calculate the mean of the sigma points first
     if(mean != NULL){
-        m = mean(sigma, wm);
+        m = mean(sigma, this->w_mean);
     }
     else{
         //find the inner product of the sigma points and the mean weights
-        m = wm * sigma;
+        m = this->w_mean * sigma;
     }
     
     MatrixXf cov_new(c.rows(), c.rows());
     cov_new.setZero();
     for(int i = 0; i < 2 * STATE_DIM + 1; i++){
         if(sub != NULL){
-            cov_new += wc(i) * sub(sigma.row(i), m) * sub(sigma.row(i), m).transpose();
+            cov_new += this->w_cov(i) * sub(sigma.row(i), m) * sub(sigma.row(i), m).transpose();
         }
         else{
-            cov_new += wc(i) * (sigma.row(i) - m) * (sigma.row(i) - m).transpose();
+            cov_new += this->w_cov(i) * (sigma.row(i) - m) * (sigma.row(i) - m).transpose();
         }
     }
-    cov_new += noise;
-    c = cov_new;
+    c = cov_new + noise;
 }
 
 // void UKF::predict(){
